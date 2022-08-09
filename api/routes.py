@@ -202,6 +202,31 @@ def login():
         return server_error('Something went wrong, please try again.')
 
 
+@users.route('/validate-user', methods=['POST'])
+def validate_user_email():
+    post_data = request.get_json()
+
+    RequestSchema = Schema.from_dict({"email": fields.Email(required=True)})
+    
+    try:
+        data = RequestSchema().load(post_data)
+    except ValidationError as error:
+        return bad_request(error.messages[0])
+
+    if data is None:
+        return bad_request("No input data provided")
+
+    if not User.find_by_email(data['email']):
+        return bad_request('User does not exist.')
+
+    try:
+        questions = Question.query.all()    
+        return QuestionSchema().dump(random.choice(questions))
+    except exc.SQLAlchemyError as err:
+        print(err)
+        return server_error('Something went wrong, please try again.')
+
+
 @users.route('/forgot-password', methods=['POST'])
 def forgot_password():
     post_data = request.get_json()
@@ -257,7 +282,7 @@ def validate_email(user):
     try:
         data = RequestSchema().load(post_data)
     except ValidationError as error:
-        return bad_request(error.messages)
+        return bad_request(error.messages[0])
 
     if data is None:
         return bad_request("No input data provided")
