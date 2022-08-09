@@ -15,7 +15,7 @@ class Config(object):
     # token
     TOKEN_EXPIRATION_DAYS = 3
     TOKEN_EXPIRATION_SECONDS = 0
-    PASSWORD_TOKEN_EXPIRATION_HRS = 1
+    PASSWORD_TOKEN_EXPIRATION_HRS = 60 * 60
     # mail
     MAIL_SERVER = os.environ.get('MAIL_SERVER')
     MAIL_PORT = int(os.environ.get('MAIL_PORT') or 25)

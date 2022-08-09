@@ -121,7 +121,7 @@ class User(db.Model):
         expiration = None
         
         if reset_password:
-            expiration = timedelta(current_app.config.get('PASSWORD_TOKEN_EXPIRATION_HRS'))
+            expiration = timedelta(seconds=current_app.config.get('PASSWORD_TOKEN_EXPIRATION_HRS'))
         else:
             expiration = timedelta(days=current_app.config.get('TOKEN_EXPIRATION_DAYS'), seconds=current_app.config.get('TOKEN_EXPIRATION_SECONDS')
                 )
