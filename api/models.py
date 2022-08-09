@@ -60,7 +60,7 @@ class User(db.Model):
     username = db.Column(db.String(255), index=True, unique=True, nullable=False)
     email = db.Column(db.String(64), index=True, unique=True, nullable=False)
     password = db.Column(db.String(255))
-    sex = db.Column(db.String(2))
+    sex = db.Column(db.String(8))
     age = db.Column(db.Integer)
     password_reminder = db.Column(db.Integer)
     location = db.Column(db.String(255))
