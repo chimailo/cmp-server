@@ -116,17 +116,21 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password, password)
 
-    def encode_auth_token(self, id):
+    def encode_auth_token(self, reset_password=False):
         """Generates the auth token"""
+        expiration = None
+        
+        if reset_password:
+            expiration = timedelta(current_app.config.get('PASSWORD_TOKEN_EXPIRATION_HRS'))
+        else:
+            expiration = timedelta(days=current_app.config.get('TOKEN_EXPIRATION_DAYS'), seconds=current_app.config.get('TOKEN_EXPIRATION_SECONDS')
+                )
         try:
             payload = {
-                'exp': datetime.utcnow() + timedelta(
-                    days=current_app.config.get('TOKEN_EXPIRATION_DAYS'),
-                    seconds=current_app.config.get('TOKEN_EXPIRATION_SECONDS')
-                ),
+                'exp': datetime.utcnow() + expiration,
                 'iat': datetime.utcnow(),
                 'sub': {
-                    'id': id,
+                    'id': self.id,
                 }
             }
             return jwt.encode(

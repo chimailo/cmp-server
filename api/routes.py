@@ -116,7 +116,7 @@ def create_user():
         db.session.rollback()
         return server_error('Something went wrong, please try again.')
 
-    response = jsonify({ 'token': user.encode_auth_token(user.id) })
+    response = jsonify({ 'token': user.encode_auth_token() })
     response.status_code = 201
     response.headers['Location'] = url_for('users.get_user', id=user.id)
     return response
@@ -197,7 +197,7 @@ def login():
         if answer_text != data['answer']:
             return error_response(401, 'Invalid credentials')
 
-        return { 'token': user.encode_auth_token(user.id) }
+        return { 'token': user.encode_auth_token() }
     except Exception:
         return server_error('Something went wrong, please try again.')
 
