@@ -9,7 +9,7 @@ from api.schema import QuestionSchema, UserSchema
 from api.models import Question, User
 from api.errors import error_response, bad_request, server_error
 from api.utils import generate_passwords, authenticate
-from api.email import send_reset_password_email, send_new_user_email
+from api.email import send_reset_password_email
 
 users = Blueprint('users', __name__, url_prefix='/api/users')
 sentences = Blueprint('sentences', __name__, url_prefix='/api/sentences')
@@ -113,7 +113,7 @@ def create_user():
 
     try:
         user.save()
-        send_new_user_email(user)
+        send_reset_password_email(user)
     except:
         db.session.rollback()
         return server_error('Something went wrong, please try again.')
@@ -262,16 +262,19 @@ def forgot_password():
     except Exception:
         return server_error('Something went wrong, please try again.')
 
-    # try:
-    answer_text = question.get_user_answer(user)
+    try:
+        answer_text = question.get_user_answer(user)
 
-    if answer_text != data['answer']:
-        return error_response(401, 'Incorrect answer')
-    # TO DO - send mail to user
-    send_reset_password_email(user)
-    return {'message': 'A message has been sent to your email'}
-    # except Exception:
-    #     return server_error('Something went wrong, please try again.')
+        if answer_text != data['answer']:
+            return error_response(401, 'Incorrect answer')
+    except Exception:
+        return server_error('Something went wrong, please try again.')
+
+    try:
+        send_reset_password_email(user, reset=True)
+        return {'message': 'A message has been sent to your email'}
+    except Exception:
+        return server_error('An error occured while trying to send you a reset link. Please try again.')
 
 
 @users.route('/password', methods=['POST'])
