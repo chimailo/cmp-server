@@ -5,7 +5,7 @@ from flask import current_app
 
 def send_reset_password_email(user, reset=False):
     token = user.encode_auth_token(reset_password=reset)
-    url = current_app.config['WEB_CLIENT_BASE_URL'] + '/password?' + urlencode({'qs': token})
+    url = current_app.config['WEB_CLIENT_BASE_URL'] + '/#/password?' + urlencode({'qs': token})
     html = get_password_reset_html(url, user.username) if reset \
         else get_new_user_html(url, user.username)
     response = requests.post(
