@@ -113,10 +113,14 @@ def create_user():
 
     try:
         user.save()
-        send_reset_password_email(user)
     except:
         db.session.rollback()
         return server_error('Something went wrong, please try again.')
+    try:
+        send_reset_password_email(user)
+    except Exception:
+        return server_error('An error occurred while trying to send \
+            you a reset link. Please try again.')
 
     response = jsonify({'token': user.encode_auth_token()})
     response.status_code = 201
@@ -274,14 +278,27 @@ def forgot_password():
         send_reset_password_email(user, reset=True)
         return {'message': 'A message has been sent to your email'}
     except Exception:
-        return server_error('An error occured while trying to send you a reset link. Please try again.')
+        return server_error('An error occurred while trying to send you a reset link. Please try again.')
 
+
+@users.route('/question', methods=['GET'])
+def get_question():
+    try:
+        question = random.choice(Question.query.all())
+    except Exception:
+        return server_error('Something went wrong, please try again.')
+    return {'question': QuestionSchema().dump(question)}
+    
 
 @users.route('/password', methods=['POST'])
 def reset_password():
     post_data = request.get_json()
 
-    RequestSchema = Schema.from_dict({"token": fields.Str(required=True)})
+    RequestSchema = Schema.from_dict({
+        "token": fields.Str(required=True),
+        "questionId": fields.Str(required=True),
+        "answer": fields.Str(required=True)
+    })
 
     try:
         data = RequestSchema().load(post_data)
@@ -301,7 +318,24 @@ def reset_password():
     if user is None:
         return error_response(401, message='Invalid token.')
 
-    password = generate_passwords(user.sentences, 1)[0]
+    try:
+        question = Question.find_by_id(data['questionId'])
+
+        if question is None:
+            return error_response(401, 'That question does not exist.')
+    except Exception:
+        return server_error('Something went wrong, please try again.')
+
+    try:
+        answer_text = question.get_user_answer(user)
+
+        if answer_text != data['answer']:
+            return error_response(401, 'Incorrect answer')
+    except Exception:
+        return server_error('Something went wrong, please try again.')
+
+    sentences = [sentence.text for sentence in user.sentences]
+    password = generate_passwords(sentences, 1)[0]
     user.password = User.hash_password(password)
 
     try:
