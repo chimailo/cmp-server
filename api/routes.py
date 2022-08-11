@@ -116,11 +116,11 @@ def create_user():
     except:
         db.session.rollback()
         return server_error('Something went wrong, please try again.')
-    # try:
-    send_reset_password_email(user)
-    # except Exception:
-    #     return server_error('An error occurred while trying to send \
-    #         you a reset link. Please try again.')
+    try:
+        send_reset_password_email(user)
+    except Exception:
+        return server_error('An error occurred while trying to send \
+            you a reset link. Please try again.')
 
     response = jsonify({'token': user.encode_auth_token()})
     response.status_code = 201
@@ -274,11 +274,11 @@ def forgot_password():
     except Exception:
         return server_error('Something went wrong, please try again.')
 
-    # try:
-    send_reset_password_email(user, reset=True)
-    return {'message': 'A message has been sent to your email'}
-    # except Exception:
-    #     return server_error('An error occurred while trying to send you a reset link. Please try again.')
+    try:
+        send_reset_password_email(user, reset=True)
+        return {'message': 'A message has been sent to your email'}
+    except Exception:
+        return server_error('An error occurred while trying to send you a reset link. Please try again.')
 
 
 @users.route('/question', methods=['GET'])
