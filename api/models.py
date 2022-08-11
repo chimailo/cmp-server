@@ -121,14 +121,10 @@ class User(db.Model):
         expiration = None
         
         if reset_password:
-            print('reset_password')
             expiration = timedelta(seconds=current_app.config.get('PASSWORD_TOKEN_EXPIRATION_HRS'))
-            print(expiration)
         else:
-            print('auth')
             expiration = timedelta(days=current_app.config.get('TOKEN_EXPIRATION_DAYS'), seconds=current_app.config.get('TOKEN_EXPIRATION_SECONDS')
                 )
-            print(expiration)
         try:
             payload = {
                 'exp': datetime.utcnow() + expiration,
@@ -137,7 +133,6 @@ class User(db.Model):
                     'id': self.id,
                 }
             }
-            print(payload)
             return jwt.encode(
                 payload,
                 current_app.config.get('SECRET_KEY'),

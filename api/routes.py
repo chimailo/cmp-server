@@ -1,14 +1,15 @@
 import random
 import re
-from sqlalchemy import exc, and_
-from marshmallow import ValidationError, Schema, fields, validate
+from sqlalchemy import exc
+from marshmallow import ValidationError, Schema, fields
 from flask import request, url_for, Blueprint, jsonify
 
 from api import db
-from api.schema import AnswerSchema, QuestionSchema, SentenceSchema, UserSchema
-from api.models import Question, Sentence, User, Answer
+from api.schema import QuestionSchema, UserSchema
+from api.models import Question, User
 from api.errors import error_response, bad_request, server_error
 from api.utils import generate_passwords, authenticate
+from api.email import send_reset_password_email, send_new_user_email
 
 users = Blueprint('users', __name__, url_prefix='/api/users')
 sentences = Blueprint('sentences', __name__, url_prefix='/api/sentences')
@@ -34,14 +35,15 @@ def validate_sentence():
         for sentence in post_data:
             count = len(re.findall(r'\w+', sentence))
             if count > 10 or count < 5:
-                raise ValidationError('All the sentences must be between 5 and 10 words')
+                raise ValidationError(
+                    'All the sentences must be between 5 and 10 words')
             sentences.append(sentence)
     except ValidationError as err:
         return error_response(422, err.messages[0])
 
     try:
         questions = Question.query.all()
-    
+
         passwords = generate_passwords(sentences, 3)
         return {
             'passwords': passwords,
@@ -87,16 +89,15 @@ def create_user():
     username = data.get('username')
     answers = data.get('answers')
     sentences = data.get('sentences')
-    
+
     if User.find_by_username(username):
         return bad_request(
-            { 'username': ['A user with that username already exists'] }
+            {'username': ['A user with that username already exists']}
         )
-        
 
     if User.find_by_email(email):
         return bad_request(
-            { 'email': ['A user with that email already exists' ]}
+            {'email': ['A user with that email already exists']}
         )
 
     user = User()
@@ -112,13 +113,12 @@ def create_user():
 
     try:
         user.save()
-    except (exc.IntegrityError, ValueError):
+        send_new_user_email(user)
+    except:
         db.session.rollback()
         return server_error('Something went wrong, please try again.')
-    
-    print(user.encode_auth_token())
-    print(type(user.encode_auth_token()))
-    response = jsonify({ 'token': user.encode_auth_token() })
+
+    response = jsonify({'token': user.encode_auth_token()})
     response.status_code = 201
     response.headers['Location'] = url_for('users.get_user', id=user.id)
     return response
@@ -132,11 +132,11 @@ def validate_login():
         "identity": fields.Str(required=True),
         "password": fields.Str(required=True),
     })
-    
+
     try:
         data = RequestSchema().load(post_data)
     except ValidationError as error:
-            return bad_request(error.messages)
+        return bad_request(error.messages)
 
     if data is None:
         return bad_request("No input data provided")
@@ -165,14 +165,14 @@ def login():
 
     RequestSchema = Schema.from_dict({
         "userId": fields.Str(required=True),
-        "questionId": fields.Str(required=True), 
+        "questionId": fields.Str(required=True),
         "answer": fields.Str(required=True)
     })
-    
+
     try:
         data = RequestSchema().load(post_data)
     except ValidationError as error:
-            return error_response(422, error.messages)
+        return error_response(422, error.messages)
 
     if data is None:
         return bad_request("No input data provided")
@@ -187,7 +187,7 @@ def login():
 
     try:
         question = Question.find_by_id(data['questionId'])
-        
+
         if question is None:
             return error_response(401, 'That question does not exist.')
     except Exception:
@@ -195,10 +195,10 @@ def login():
 
     try:
         answer_text = question.get_user_answer(user)
-        
+
         if answer_text != data['answer']:
             return error_response(401, 'Invalid credentials')
-        return { 'token': user.encode_auth_token() }
+        return {'token': user.encode_auth_token()}
     except Exception:
         return server_error('Something went wrong, please try again.')
 
@@ -208,7 +208,7 @@ def validate_user_email():
     post_data = request.get_json()
 
     RequestSchema = Schema.from_dict({"email": fields.Email(required=True)})
-    
+
     try:
         data = RequestSchema().load(post_data)
     except ValidationError as error:
@@ -221,7 +221,7 @@ def validate_user_email():
         return bad_request('User does not exist.')
 
     try:
-        questions = Question.query.all()    
+        questions = Question.query.all()
         return QuestionSchema().dump(random.choice(questions))
     except exc.SQLAlchemyError as err:
         print(err)
@@ -234,14 +234,14 @@ def forgot_password():
 
     RequestSchema = Schema.from_dict({
         "email": fields.Email(required=True),
-        "questionId": fields.Str(required=True), 
+        "questionId": fields.Str(required=True),
         "answer": fields.Str(required=True)
     })
-    
+
     try:
         data = RequestSchema().load(post_data)
     except ValidationError as error:
-            return bad_request(error.messages)
+        return bad_request(error.messages)
 
     if data is None:
         return bad_request("No input data provided")
@@ -253,7 +253,7 @@ def forgot_password():
             return error_response(401, 'User does not exist.')
     except Exception:
         return server_error('Something went wrong, please try again.')
-    
+
     try:
         question = Question.find_by_id(data['questionId'])
 
@@ -262,14 +262,50 @@ def forgot_password():
     except Exception:
         return server_error('Something went wrong, please try again.')
 
+    # try:
+    answer_text = question.get_user_answer(user)
+
+    if answer_text != data['answer']:
+        return error_response(401, 'Incorrect answer')
+    # TO DO - send mail to user
+    send_reset_password_email(user)
+    return {'message': 'A message has been sent to your email'}
+    # except Exception:
+    #     return server_error('Something went wrong, please try again.')
+
+
+@users.route('/password', methods=['POST'])
+def reset_password():
+    post_data = request.get_json()
+
+    RequestSchema = Schema.from_dict({"token": fields.Str(required=True)})
+
     try:
-        answer_text = question.get_user_answer(user)
-        
-        if answer_text != data['answer']:
-            return error_response(401, 'Invalid credentials')
-        # TO DO - send mail to user
-        return {'message': 'A message has been sent to your email'}
-    except Exception:
+        data = RequestSchema().load(post_data)
+    except ValidationError as error:
+        return bad_request(error.messages)
+
+    if data is None:
+        return bad_request("No input data provided")
+
+    payload = User.decode_auth_token(data['token'])
+
+    if not isinstance(payload, dict):
+        return error_response(401, message=payload)
+
+    user = User.find_by_id(payload.get('id'))
+
+    if user is None:
+        return error_response(401, message='Invalid token.')
+
+    password = generate_passwords(user.sentences, 1)[0]
+    user.password = User.hash_password(password)
+
+    try:
+        user.save()
+        return {'password': password}
+    except:
+        db.session.rollback()
         return server_error('Something went wrong, please try again.')
 
 
@@ -279,7 +315,7 @@ def validate_email(user):
     post_data = request.get_json()
 
     RequestSchema = Schema.from_dict({"email": fields.Email(required=True)})
-    
+
     try:
         data = RequestSchema().load(post_data)
     except ValidationError as error:
@@ -292,12 +328,11 @@ def validate_email(user):
         return bad_request("A user with that email already exists")
 
     try:
-        questions = Question.query.all()    
+        questions = Question.query.all()
         return QuestionSchema().dump(random.choice(questions))
     except exc.SQLAlchemyError as err:
         print(err)
         return server_error('Something went wrong, please try again.')
-
 
 
 @users.route('', methods=['PUT'])
@@ -307,10 +342,10 @@ def change_email(user):
 
     RequestSchema = Schema.from_dict({
         "email": fields.Email(required=True),
-        "questionId": fields.Str(required=True), 
+        "questionId": fields.Str(required=True),
         "answer": fields.Str(required=True)
     })
-    
+
     try:
         data = RequestSchema().load(post_data)
     except ValidationError as error:
@@ -332,7 +367,7 @@ def change_email(user):
 
     try:
         answer_text = question.get_user_answer(user)
-        
+
         if answer_text != data.get('answer'):
             return error_response(401, 'Invalid credentials')
 
@@ -346,7 +381,7 @@ def change_email(user):
 @users.route('/logout', methods=['GET'])
 @authenticate
 def logout_user(user):
-    return { 'message': 'Successfully logged out.'}
+    return {'message': 'Successfully logged out.'}
 
 
 @users.route('', methods=['GET'])
