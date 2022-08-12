@@ -10,14 +10,7 @@ def register(app):
         pass
 
 
-    @seed.command()
-    def db():
-        """Seeds the database."""
-        _db.drop_all()
-        _db.create_all()
-        _db.session.commit()
-        questions_table()
-        
+    @seed.command()        
     def questions_table():
         """Seeds the questions table."""
         questions = [
