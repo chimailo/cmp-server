@@ -1,10 +1,11 @@
 import random
 from functools import wraps
-from datetime import datetime
+from time import sleep
 
-from flask import request
+from flask import request, current_app
 from api.errors import error_response
 from api.models import User
+from api.email import send_password_email
 
 
 special_chars = ['~', '@', '#', '$', '%', '^', '&', '*', '/', '-', '+', ';', '?', '{', '}', '(', ')', '[', ']', '|', '_', '=']
@@ -65,3 +66,21 @@ def generate_passwords(sentences, n):
         list: A list of password strings
     """
     return [generate_password(sentences) for i in range(n)]
+
+
+def password_reminder(app, user):
+    """Send the user an email periodically with a link to view their password 
+
+    Args:
+        user (User): The user object
+
+    Returns:
+        None
+    """
+    # run forever
+    while True:
+        # block for the interval
+        sleep(user.password_reminder * 24 * 60 * 60)
+        with app.app_context():
+            # perform the task
+            send_password_email(user, reset=True)

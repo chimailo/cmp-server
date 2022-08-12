@@ -3,7 +3,7 @@ import requests
 from flask import current_app
 
 
-def send_reset_password_email(user, reset=False):
+def send_password_email(user, reset=False):
     token = user.encode_auth_token(reset_password=reset)
     url = current_app.config['WEB_CLIENT_BASE_URL'] + '/#/password?' + urlencode({'qs': token})
     html = get_password_reset_html(url, user.username) if reset \
@@ -24,10 +24,11 @@ def send_reset_password_email(user, reset=False):
 def get_new_user_html(url, username):
     return f'<p>Dear {username},</p> \
     <p>Let me welcome you to Computing Masters Project, I hope you have a swell time here.</p> \
-    <p>When you signed up to use our service you selected a password, to view it click the button below</p> \
+    <p>When you signed up to use our service you selected a password, to view it click the button below</p><br /> \
     <a href="{url}" style="margin-top: 32px; margin-bottom: 32px; padding: 13px 28px; background-color: #990f3d; color: #fff; border-radius: 4px; text-decoration: none;"> \
         View your Password \
-    </a>. \
+    </a> \
+    <br /> \
     <p>Alternatively, you can paste the following link in your browser address bar:</p> \
     <p>{url}</p> \
     <p>If you have not requested a password reset simply ignore this message.</p> \
@@ -37,19 +38,20 @@ def get_new_user_html(url, username):
 
 def get_password_reset_html(url, username):
     return f'<p>Dear {username },</p> \
-    <p>Click the button below to view the new password generated for you.</p> \
+    <p>A new password has been generated for you. Click the button below to view it.</p> <br /> \
     <a href="{url}" style="margin-top: 32px; margin-bottom: 32px; padding: 13px 28px; background-color: #990f3d; color: #fff; border-radius: 4px; text-decoration: none;"> \
         View your Password \
-    </a>. \
+    </a> \
+    <br /> \
     <p>Alternatively, you can paste the following link in your browser address bar:</p> \
     <p>{url}</p> \
     <p>If you have not requested a password reset simply ignore this message.</p> \
     <p>Sincerely,</p> \
     <p>Computing Masters Project</p>'
 
-# def send_async_email(app, msg):
+# def send_async_email(app, user):
 #     with app.app_context():
-#         mail.send(msg)
+#         send_password_email(user)
 
 
 # def send_email(subject, sender, recipients, text_body, html_body):

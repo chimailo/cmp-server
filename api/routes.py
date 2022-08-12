@@ -1,15 +1,16 @@
 import random
 import re
+from threading import Thread
 from sqlalchemy import exc
 from marshmallow import ValidationError, Schema, fields
-from flask import request, url_for, Blueprint, jsonify
+from flask import request, url_for, Blueprint, jsonify, current_app
 
 from api import db
 from api.schema import QuestionSchema, UserSchema
 from api.models import Question, User
 from api.errors import error_response, bad_request, server_error
-from api.utils import generate_passwords, authenticate
-from api.email import send_reset_password_email
+from api.utils import generate_passwords, authenticate, password_reminder
+from api.email import send_password_email
 
 users = Blueprint('users', __name__, url_prefix='/api/users')
 sentences = Blueprint('sentences', __name__, url_prefix='/api/sentences')
@@ -117,7 +118,11 @@ def create_user():
         db.session.rollback()
         return server_error('Something went wrong, please try again.')
     try:
-        send_reset_password_email(user)
+        send_password_email(user)
+        app = current_app._get_current_object()
+        daemon = Thread(target=password_reminder, args=(app, user,), daemon=True, name='Password Reminder')
+        daemon.start()
+        print('daemon started')
     except Exception:
         return server_error('An error occurred while trying to send \
             you a reset link. Please try again.')
@@ -275,7 +280,7 @@ def forgot_password():
         return server_error('Something went wrong, please try again.')
 
     try:
-        send_reset_password_email(user, reset=True)
+        send_password_email(user, reset=True)
         return {'message': 'A message has been sent to your email'}
     except Exception:
         return server_error('An error occurred while trying to send you a reset link. Please try again.')
