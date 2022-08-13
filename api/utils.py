@@ -45,11 +45,15 @@ def generate_password(sentences):
     """
     chars = special_chars + numbers
     words = []
+    count = 0
 
     for sentence in sentences:
-        words.append(random.choice(sentence.split()).strip())
+        word = random.choice(sentence.split()).strip()
+        words.append(word)
+        count += len(word)
 
-    chars = random.sample(special_chars + numbers, 12)
+    chars = random.sample(special_chars + numbers, 5) if count >= 10 else \
+        random.sample(special_chars + numbers, 10)
     sample = words + chars
     random.shuffle(sample)
     return ''.join(sample)

@@ -9,7 +9,7 @@ from api import db
 from api.schema import QuestionSchema, UserSchema
 from api.models import Question, User
 from api.errors import error_response, bad_request, server_error
-from api.utils import generate_passwords, authenticate, password_reminder
+from api.utils import generate_password, generate_passwords, authenticate, password_reminder
 from api.email import send_password_email
 
 users = Blueprint('users', __name__, url_prefix='/api/users')
@@ -86,6 +86,7 @@ def create_user():
     except ValidationError as err:
         return error_response(422, err.messages)
 
+
     email = data.get('email')
     username = data.get('username')
     answers = data.get('answers')
@@ -104,7 +105,7 @@ def create_user():
     user = User()
     user.email = email
     user.username = username
-    user.location = data.get('location')
+    user.country = data.get('country')
     user.age = data.get('age')
     user.sex = data.get('sex')
     user.password = User.hash_password(data.get('password'))
@@ -118,14 +119,13 @@ def create_user():
         db.session.rollback()
         return server_error('Something went wrong, please try again.')
     try:
-        send_password_email(user)
+        send_password_email(user, password=data.get('password'))
         app = current_app._get_current_object()
-        daemon = Thread(target=password_reminder, args=(app, user,), daemon=True, name='Password Reminder')
-        daemon.start()
-        print('daemon started')
+        Thread(target=password_reminder, args=(app, user,), \
+            daemon=True, name='Password Reminder').start()
     except Exception:
         return server_error('An error occurred while trying to send \
-            you a reset link. Please try again.')
+            your password, please try again.')
 
     response = jsonify({'token': user.encode_auth_token()})
     response.status_code = 201
@@ -295,8 +295,45 @@ def get_question():
     return {'question': QuestionSchema().dump(question)}
     
 
-@users.route('/password', methods=['POST'])
+@users.route('/reset-password', methods=['POST'])
 def reset_password():
+    post_data = request.get_json()
+
+    RequestSchema = Schema.from_dict({"token": fields.Str(required=True)})
+
+    try:
+        data = RequestSchema().load(post_data)
+    except ValidationError as error:
+        return bad_request(error.messages)
+
+    if data is None:
+        return bad_request("No input data provided")
+
+    payload = User.decode_auth_token(data['token'])
+
+    if not isinstance(payload, dict):
+        return error_response(401, message=payload)
+
+    user = User.find_by_id(payload.get('id'))
+
+    if user is None:
+        return error_response(401, message='Invalid token.')
+    
+    # return new password to user if reset
+    sentences = [sentence.text for sentence in user.sentences]
+    password = generate_password(sentences)
+    user.password = User.hash_password(password)
+
+    try:
+        user.save()
+    except:
+        db.session.rollback()
+        return server_error('Something went wrong, please try again.')
+    return {'password': password}
+
+
+@users.route('/get-password', methods=['POST'])
+def view_password():
     post_data = request.get_json()
 
     RequestSchema = Schema.from_dict({
@@ -322,7 +359,7 @@ def reset_password():
 
     if user is None:
         return error_response(401, message='Invalid token.')
-
+    
     try:
         question = Question.find_by_id(data['questionId'])
 
@@ -338,17 +375,7 @@ def reset_password():
             return error_response(401, 'Incorrect answer')
     except Exception:
         return server_error('Something went wrong, please try again.')
-
-    sentences = [sentence.text for sentence in user.sentences]
-    password = generate_passwords(sentences, 1)[0]
-    user.password = User.hash_password(password)
-
-    try:
-        user.save()
-        return {'password': password}
-    except:
-        db.session.rollback()
-        return server_error('Something went wrong, please try again.')
+    return {'password': payload['password']}
 
 
 @users.route('/validate-email', methods=['POST'])

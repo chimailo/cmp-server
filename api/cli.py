@@ -10,7 +10,7 @@ def register(app):
         pass
 
 
-    @seed.command()        
+    @seed.command()   
     def questions_table():
         """Seeds the questions table."""
         questions = [

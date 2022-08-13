@@ -31,7 +31,7 @@ def upgrade():
     sa.Column('sex', sa.String(length=2), nullable=True),
     sa.Column('age', sa.Integer(), nullable=True),
     sa.Column('password_reminder', sa.Integer(), nullable=True),
-    sa.Column('location', sa.String(length=255), nullable=True),
+    sa.Column('country', sa.String(length=255), nullable=True),
     sa.Column('created_on', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )

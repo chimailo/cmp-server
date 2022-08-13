@@ -63,7 +63,7 @@ class User(db.Model):
     sex = db.Column(db.String(8))
     age = db.Column(db.Integer)
     password_reminder = db.Column(db.Integer)
-    location = db.Column(db.String(255))
+    country = db.Column(db.String(255))
     created_on = db.Column(
         db.DateTime,
         default=datetime.utcnow,
@@ -116,7 +116,7 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password, password)
 
-    def encode_auth_token(self, reset_password=False):
+    def encode_auth_token(self, password=None, reset_password=False):
         """Generates the auth token"""
         expiration = None
         
@@ -130,9 +130,13 @@ class User(db.Model):
                 'exp': datetime.utcnow() + expiration,
                 'iat': datetime.utcnow(),
                 'sub': {
-                    'id': self.id,
+                    'id': self.id
                 }
             }
+
+            if password:
+                payload['sub']['password'] = password
+
             return jwt.encode(
                 payload,
                 current_app.config.get('SECRET_KEY'),
