@@ -14,7 +14,7 @@ def send_password_email(user, reset=False, password=None):
         current_app.config['MAIL_SERVER'],
         auth=("api", f"{current_app.config['MAIL_SERVER_API_KEY']}"),
         data={"from": f"Computing Masters Project <mailgun@{current_app.config['DOMAIN_NAME']}.com>",
-              "to": ["collins.chima.ilo@gmail.com", user.email],
+              "to": [user.email],
               "subject": "Password",
               "html": html})
 
