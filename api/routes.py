@@ -55,6 +55,29 @@ def validate_sentence():
         return server_error('Something went wrong, please try again.')
 
 
+@sentences.route('/passwords', methods=['POST'])
+def get_passwords():
+    post_data = request.get_json()
+
+    if not post_data:
+        return bad_request("No input data provided")
+
+    if len(post_data) != 3:
+        return bad_request('You must enter 3 sentences')
+
+    try:
+        sentences = []
+        for sentence in post_data:
+            count = len(re.findall(r'\w+', sentence))
+            if count > 10 or count < 5:
+                raise ValidationError(
+                    'All the sentences must be between 5 and 10 words')
+            sentences.append(sentence)
+    except ValidationError as err:
+        return error_response(422, err.messages[0])
+    return {'passwords': generate_passwords(sentences, 3)}
+    
+
 @users.route('/ping')
 def ping():
     return {"message": "Users Route!"}

@@ -48,7 +48,10 @@ def generate_password(sentences):
     count = 0
 
     for sentence in sentences:
-        word = random.choice(sentence.split()).strip()
+        word = ''
+        while not len(word) > 1:
+            word = random.choice(sentence.split()).strip()
+
         words.append(word)
         count += len(word)
 
