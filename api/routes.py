@@ -301,9 +301,13 @@ def forgot_password():
             return error_response(401, 'Incorrect answer')
     except Exception:
         return server_error('Something went wrong, please try again.')
+    
+    password = generate_password([sentence.text for sentence in user.sentences])
+    user.password = User.hash_password(password)
 
     try:
-        send_password_email(user, reset=True)
+        user.save()
+        send_password_email(user, password=password, reset=True)
         return {'message': 'A message has been sent to your email'}
     except Exception:
         return server_error('An error occurred while trying to send you a reset link. Please try again.')
@@ -317,43 +321,6 @@ def get_question():
         return server_error('Something went wrong, please try again.')
     return {'question': QuestionSchema().dump(question)}
     
-
-@users.route('/reset-password', methods=['POST'])
-def reset_password():
-    post_data = request.get_json()
-
-    RequestSchema = Schema.from_dict({"token": fields.Str(required=True)})
-
-    try:
-        data = RequestSchema().load(post_data)
-    except ValidationError as error:
-        return bad_request(error.messages)
-
-    if data is None:
-        return bad_request("No input data provided")
-
-    payload = User.decode_auth_token(data['token'])
-
-    if not isinstance(payload, dict):
-        return error_response(401, message=payload)
-
-    user = User.find_by_id(payload.get('id'))
-
-    if user is None:
-        return error_response(401, message='Invalid token.')
-    
-    # return new password to user if reset
-    sentences = [sentence.text for sentence in user.sentences]
-    password = generate_password(sentences)
-    user.password = User.hash_password(password)
-
-    try:
-        user.save()
-    except:
-        db.session.rollback()
-        return server_error('Something went wrong, please try again.')
-    return {'password': password}
-
 
 @users.route('/get-password', methods=['POST'])
 def view_password():

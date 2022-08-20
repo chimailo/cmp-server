@@ -5,9 +5,8 @@ from flask import current_app
 
 def send_password_email(user, reset=False, password=None):
     token = user.encode_auth_token(password=password, reset_password=reset)
-    route = 'reset-password' if reset else 'password'
     url = current_app.config['WEB_CLIENT_BASE_URL'] + \
-        f'/{route}?' + urlencode({'qs': token})
+        '/password?' + urlencode({'qs': token})
     html = get_password_reset_html(url, user.username) if reset \
         else get_new_user_html(url, user.username)
     response = requests.post(
@@ -19,6 +18,8 @@ def send_password_email(user, reset=False, password=None):
               "html": html})
 
     if not response.ok:
+        print(response.reason)
+        print(response.text)
         raise requests.RequestException('An error has occurred')
     return response
 
